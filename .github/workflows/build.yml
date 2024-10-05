@@ -34,4 +34,4 @@ jobs:
       - name: Build the Docker image
         run: docker build -f DockerFile -t ${{ secrets.DOCKER_TAG }}:latest .
       - name: Publish Docker image
-        run: docker push ${{ secrets.DOCKER_REPO }}
+        run: docker push ${{ secrets.DOCKER_REPO }}:${{ secrets.DOCKER_TAG }}:latest
