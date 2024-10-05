@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres
+    container_name: postgres_for_service_with_kubernetes
+    ports:
+      - 5433:5432
+    volumes:
+      - /var/lib/postgresql:/var/lib/postgresql
+    environment:
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: jpixelscoringbot
+      POSTGRES_USER: postgres
+      PGDATA: /var/lib/postgresql/data/pgdata
+    restart: always
+
+  vault:
+    image: vault:1.13.3
+    container_name: vault_dev
+    ports:
+      - 8200:8200
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: myroot
+      VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
+    cap_add:
+      - IPC_LOCK
+    command: server -dev
+
+  jpixelscoringbot:
+    image: jpixel40/scoringbot:latest
+    container_name: jpixelscoringbot
+    environment:
+      VAULT_HOST: http://localhost:8200
+      VAULT_TOKEN: myroot
+    depends_on:
+      - db
+      - vault
