@@ -1,0 +1,56 @@
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.5.xsd">
+
+    <changeSet id="create data 03.10.2024" author="Ivan Gavrilov" dbms="postgresql">
+        <sql>
+            insert into difficulty_levels(code, description)
+            values ('junior', 'Младший специалист'),
+                   ('middle', 'Старший специалист'),
+                   ('senior', 'Ведущий специалист'),
+                   ('technical_leader', 'Технический лидер'),
+                   ('architect', 'Архитектор');
+
+            insert into question_types(code, description)
+            values ('Java', 'Вопросы связанные с ЯП Java и все что вокруг нее'),
+                   ('Frontend', 'Вопросы связанные с языками программирования для разработки UI и все что вокруг них'),
+                   ('Analytics', 'Вопросы связанные с аналитикой и все что вокруг нее');
+
+            insert into questions(question, question_number, question_type_code, image, timer_in_seconds,
+                                  difficulty_level_code)
+            values ('Что такое ОПП?', 1,
+                    'Java', null, 30, 'junior'),
+                   ('Чем отличается абстракция от интерфейса в ООП?', 2,
+                    'Java', null, 30, 'junior'),
+                   ('Что относится к паттернам поведения?', 3,
+                    'Java', null, 30, 'junior');
+
+            insert into answers(answer, answer_number, question_id, "right")
+            values ('Методология программирования, которая представляет программное обеспечение в виде набора функций', 1, 1, false),
+                   ('Методология программирования, которая представляет программное обеспечение в виде набора объектов', 2, 1, true),
+                   ('Методология программирования, которая представляет программное обеспечение в виде набора последовательных инструкций', 3, 1, false),
+                   ('Такого понятия нет', 4, 1, false);
+
+            insert into answers(answer, answer_number, question_id, "right")
+            values ('Абстракция имеет состояние и поведение, а интерфейс только состояние', 1, 2, false),
+                   ('Абстракция имеет поведение, а интерфейс поведение и состояние', 2, 2, false),
+                   ('Абстракция имеет состояние и поведение, а интерфейс только поведение', 3, 2, true),
+                   ('Абстракция и интерфейс имеют только поведение', 4, 2, false);
+
+            insert into answers(answer, answer_number, question_id, "right")
+            values ('Iterator, Strategy, Chain of Responsibility, Visitor', 1, 3, true),
+                   ('Prototype, Singleton, Builder, Factory Method', 2, 3, false),
+                   ('Proxy, Bridge, Adapter, Decorator', 3, 3, false);
+        </sql>
+        <rollback>
+            truncate difficulty_levels;
+            truncate questions;
+            truncate answers;
+        </rollback>
+        <comment>
+            Init date
+        </comment>
+    </changeSet>
+</databaseChangeLog>

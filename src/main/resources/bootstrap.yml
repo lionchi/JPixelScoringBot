@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: JPixelScoringBot
+  cloud:
+    vault:
+      uri: ${VAULT_HOST}
+      kv:
+        enabled: true
+        backend: kv
+      authentication: TOKEN
+      token: ${VAULT_TOKEN}

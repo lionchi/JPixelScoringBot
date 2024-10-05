@@ -1,0 +1,16 @@
+spring:
+  liquibase:
+    change-log: db/changeset-master.xml
+  datasource:
+    url: ${datasource.url}
+    username: ${datasource.username}
+    password: ${datasource.password}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+telegram:
+  bot:
+    token: ${telegram_bot_token}
+    username: ${telegram_bot_username}
