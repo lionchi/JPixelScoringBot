@@ -1,11 +1,11 @@
-FROM maven:3.6.3-openjdk-21-slim AS build
+FROM maven:3.9.9-sapmachine-21 AS build
 RUN mkdir -p /workspace
 WORKDIR /workspace
 COPY pom.xml /workspace
 COPY src /workspace/src
 RUN mvn -B package --file pom.xml -DskipTests
 
-FROM openjdk:17-slim
+FROM openjdk:21-slim
 ENV VAULT_HOST=http://localhost:8200
 ENV VAULT_TOKEN=myroot
 COPY --from=build /workspace/target/jpixelscoringbot*.jar app.jar
