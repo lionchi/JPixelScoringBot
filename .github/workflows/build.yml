@@ -32,6 +32,6 @@ jobs:
       - name: Login to Docker Hub
         run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
       - name: Build the Docker image
-        run: docker build -f DockerFile -t ${{ secrets.DOCKER_TAG }}:latest .
+        run: docker build -f DockerFile -t ${{ secrets.DOCKER_REPO }}:latest .
       - name: Publish Docker image
-        run: docker push ${{ secrets.DOCKER_REPO }}:${{ secrets.DOCKER_TAG }}:latest
+        run: docker push ${{ secrets.DOCKER_REPO }}
