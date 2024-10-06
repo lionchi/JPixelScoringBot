@@ -42,5 +42,5 @@ jobs:
     needs: [ build_docker_image ]
 
     steps:
-      - name: Publish Docker image
+      - name: Trigger jenkins job
         run: curl -X POST -d "job=${{ secrets.JENKINS_JOB }}&token=${{ JENKINS_TOKEN }}" http://${{ secrets.JENKINS_HOST }}/buildByToken/build
