@@ -43,4 +43,4 @@ jobs:
 
     steps:
       - name: Trigger jenkins job
-        run: curl -X POST -d "job=${{ secrets.JENKINS_JOB }}&token=${{ secrets.JENKINS_TOKEN }}" http://${{ secrets.JENKINS_HOST }}/buildByToken/build
+        run: curl -X POST -d "job=${{ secrets.JENKINS_JOB }}&token=${{ secrets.JENKINS_TOKEN }}" ${{ secrets.JENKINS_HOST }}/buildByToken/build
