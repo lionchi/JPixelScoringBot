@@ -35,3 +35,17 @@ jobs:
         run: docker build -f DockerFile -t ${{ secrets.DOCKER_REPO }}:latest .
       - name: Publish Docker image
         run: docker push ${{ secrets.DOCKER_REPO }}
+
+  launch_jenkins_job:
+    name: Trigger jenkins job
+    runs-on: ubuntu-latest
+    needs: [build_docker_image]
+
+    steps:
+      - name: Trigger Jenkins Job
+        uses: sbitio/trigger-jenkins-job@master
+        with:
+          JENKINS_USER: ${{ secrets.JENKINS_USER }}
+          JENKINS_TOKEN: ${{ secrets.JENKINS_TOKEN }}
+          JENKINS_HOST: ${{ secrets.JENKINS_HOST }}
+          JENKINS_JOB: ${{ secrets.JENKINS_JOB }}
