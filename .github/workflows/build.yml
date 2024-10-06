@@ -35,3 +35,12 @@ jobs:
         run: docker build -f DockerFile -t ${{ secrets.DOCKER_REPO }}:latest .
       - name: Publish Docker image
         run: docker push ${{ secrets.DOCKER_REPO }}
+
+  jenkins_trigger_job:
+    name: Trigger jenkins job
+    runs-on: ubuntu-latest
+    needs: [ build_docker_image ]
+
+    steps:
+      - name: Publish Docker image
+        run: curl -X POST -d "job=${{ secrets.JENKINS_JOB }}&token=${{ JENKINS_TOKEN }}" http://${{ secrets.JENKINS_HOST }}/buildByToken/build
