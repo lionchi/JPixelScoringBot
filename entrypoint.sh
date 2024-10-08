@@ -1,5 +1,7 @@
 #!/bin/sh
 
+echo "Импорт сертификата в $JAVA_HOME/jre/lib/security/cacerts"
+
 keytool -import \
 -alias vault \
 -storepass changeit \
@@ -7,5 +9,7 @@ keytool -import \
 -noprompt \
 -trustcacerts \
 -file /workspace/certs/selfsigned.crt
+
+echo "Сертификат успешно импортирован"
 
 exec java -jar app.jar
