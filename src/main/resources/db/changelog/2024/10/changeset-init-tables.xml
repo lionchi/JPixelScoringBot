@@ -39,7 +39,7 @@
                 question              text         not null,
                 question_number       integer      not null,
                 question_type_code    varchar(255) not null,
-                image                 bytea,
+                image_minio_path      varchar(255),
                 timer_in_seconds      integer      not null default 60,
                 difficulty_level_code varchar(255) not null,
                 primary key (id)

@@ -10,6 +10,12 @@ spring:
     hibernate:
       ddl-auto: validate
 
+minio:
+  host: ${minio.host}
+  accessToken: ${minio.accessToken}
+  secretToken: ${minio.secretToken}
+  nameBucket: ${minio.nameBucket}
+
 telegram:
   bot:
     token: ${telegram_bot_token}

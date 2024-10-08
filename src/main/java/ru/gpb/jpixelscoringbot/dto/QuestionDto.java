@@ -5,7 +5,6 @@ public record QuestionDto(
         String question,
         int questionNumber,
         String questionTypeCode,
-        byte[] image,
         int timeInSeconds,
-        String difficultyLevelCode) {
+        String difficultyLevelCode, String imageMinioPath) {
 }

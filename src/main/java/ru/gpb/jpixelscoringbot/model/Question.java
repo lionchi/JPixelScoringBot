@@ -26,8 +26,8 @@ public class Question {
     @JoinColumn(name = "question_type_code", nullable = false)
     private QuestionType questionType;
 
-    @Column(name = "image")
-    private byte[] image;
+    @Column(name = "image_minio_path")
+    private String imageMinioPath;
 
     @Column(name = "timer_in_seconds", nullable = false)
     private int timeInSeconds;

@@ -16,6 +16,7 @@ public class JPixelScoringBotState {
     private final Map<Long, User> userMap = new HashMap<>();
     private final Map<Long, Thread> timerMap = new HashMap<>();
     private final Map<Long, Message> messageMap = new HashMap<>();
+    private final Map<Long, Message> photoMessageMap = new HashMap<>();
     private final Map<Long, List<QuestionDto>> questionsMap = new HashMap<>();
 
     public JPixelScoringBotState(Map<Long, UserState> chatStates) {
@@ -68,6 +69,18 @@ public class JPixelScoringBotState {
 
     public Message getTelegramMessage(Long chatId) {
         return this.messageMap.get(chatId);
+    }
+
+    public Message putPhotoMessage(Long chatId, Message message) {
+        return this.photoMessageMap.put(chatId, message);
+    }
+
+    public Message getPhotoMessage(Long chatId) {
+        return this.photoMessageMap.get(chatId);
+    }
+
+    public void removePhotoMessage(Long chatId) {
+        this.photoMessageMap.remove(chatId);
     }
 
     public List<QuestionDto> putQuestions(Long chatId, List<QuestionDto> questions) {

@@ -2,7 +2,6 @@ package ru.gpb.jpixelscoringbot.service;
 
 import ru.gpb.jpixelscoringbot.dto.QuestionDto;
 import ru.gpb.jpixelscoringbot.model.Question;
-import ru.gpb.jpixelscoringbot.model.QuestionType;
 
 import java.util.List;
 
@@ -12,5 +11,7 @@ public interface QuestionService {
 
     List<QuestionDto> findQuestions();
 
-    List<QuestionType> findQuestionTypes();
+    Long totalCountQuestionByQuestionTypeCode();
+
+    String getQuestionTypeCode();
 }

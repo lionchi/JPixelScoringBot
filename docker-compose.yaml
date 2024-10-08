@@ -36,3 +36,11 @@ services:
     depends_on:
       - db
       - vault
+      -
+volumes:
+  vault-config:
+    external: true
+  vault-policies:
+    external: true
+  vault-data:
+    external: true
