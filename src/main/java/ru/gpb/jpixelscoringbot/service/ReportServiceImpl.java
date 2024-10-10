@@ -44,9 +44,20 @@ public class ReportServiceImpl implements ReportService {
     }
 
     @Override
+    public boolean existsAllByUserTelegramIdAndQuestionQuestionTypeCode(Long telegramUserId, String questionTypeCode) {
+        return reportRepository.existsAllByUserTelegramIdAndQuestionQuestionTypeCode(telegramUserId, questionTypeCode);
+    }
+
+    @Override
     @Transactional
     public void removePreviousReport(Long telegramUserId, String questionTypeCode) {
         reportRepository.deleteAllByUserTelegramIdAndQuestionQuestionTypeCode(telegramUserId, questionTypeCode);
+    }
+
+    @Override
+    @Transactional
+    public void removePreviousReport(String telegramLogin, String questionTypeCode) {
+        reportRepository.deleteAllByUserTelegramLoginAndQuestionQuestionTypeCode(telegramLogin, questionTypeCode);
     }
 
     @Override
@@ -65,11 +76,11 @@ public class ReportServiceImpl implements ReportService {
         StringBuilder sb = new StringBuilder();
 
         reportMap.forEach((s, reportList) -> {
-            Long totalCountQuestion = questionServiceList.stream()
+            Integer totalCountQuestion = questionServiceList.stream()
                     .filter(questionService -> questionService.getQuestionTypeCode().equals(s))
-                    .map(QuestionService::totalCountQuestionByQuestionTypeCode)
+                    .map(QuestionService::getLimitSelectedRecordQuestions)
                     .findFirst()
-                    .orElse(0L);
+                    .orElse(0);
 
             Map<Boolean, List<Report>> resultMap = reportList.stream()
                     .collect(Collectors.partitioningBy(report -> Objects.nonNull(report.getAnswer()) && report.getAnswer().isRight()));

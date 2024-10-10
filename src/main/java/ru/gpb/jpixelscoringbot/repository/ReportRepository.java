@@ -11,5 +11,9 @@ public interface ReportRepository extends JpaRepository<Report, Long> {
 
     List<Report> findAllByUserTelegramId(Long telegramUserId);
 
+    boolean existsAllByUserTelegramIdAndQuestionQuestionTypeCode(Long telegramUserId, String questionTypeCode);
+
     void deleteAllByUserTelegramIdAndQuestionQuestionTypeCode(Long telegramUserId, String questionTypeCode);
+
+    void deleteAllByUserTelegramLoginAndQuestionQuestionTypeCode(String telegramLogin, String questionTypeCode);
 }

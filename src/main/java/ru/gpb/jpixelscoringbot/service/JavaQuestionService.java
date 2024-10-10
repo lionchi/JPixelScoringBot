@@ -1,48 +1,51 @@
 package ru.gpb.jpixelscoringbot.service;
 
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import ru.gpb.jpixelscoringbot.config.SettingsProperties;
 import ru.gpb.jpixelscoringbot.dto.QuestionDto;
 import ru.gpb.jpixelscoringbot.mapper.QuestionMapper;
 import ru.gpb.jpixelscoringbot.model.QuestionType;
 import ru.gpb.jpixelscoringbot.repository.QuestionRepository;
 
 import java.util.List;
-
-import static ru.gpb.jpixelscoringbot.config.Constants.QUESTION_CACHE_NAME;
+import java.util.stream.Collectors;
 
 @Service
 public class JavaQuestionService extends BaseServiceQuestion {
 
     private final QuestionMapper questionMapper;
     private final QuestionRepository questionRepository;
+    private final SettingsProperties settingsProperties;
     private final QuestionTypeService questionTypeService;
 
-    public JavaQuestionService(QuestionMapper questionMapper, QuestionRepository questionRepository, QuestionTypeService questionTypeService) {
+    public JavaQuestionService(QuestionMapper questionMapper,
+                               QuestionRepository questionRepository,
+                               SettingsProperties settingsProperties,
+                               QuestionTypeService questionTypeService) {
         super(questionRepository);
 
         this.questionMapper = questionMapper;
         this.questionRepository = questionRepository;
+        this.settingsProperties = settingsProperties;
         this.questionTypeService = questionTypeService;
     }
 
     @Override
-    @Cacheable(cacheNames = QUESTION_CACHE_NAME)
-    public List<QuestionDto> findQuestions() {
+    public List<QuestionDto> findAllOrderByRandom() {
         var questionType = questionTypeService.findById(getQuestionTypeCode());
 
-        return questionRepository.findAllByQuestionType(questionType).stream()
+        return questionRepository.findAllByQuestionTypeOrderByRandom(questionType.getCode(), getLimitSelectedRecordQuestions()).stream()
                 .map(questionMapper::toDto)
-                .toList();
-    }
-
-    @Override
-    public Long totalCountQuestionByQuestionTypeCode() {
-        return questionRepository.countAllByQuestionType(questionTypeService.findById(getQuestionTypeCode()));
+                .collect(Collectors.toList());
     }
 
     @Override
     public String getQuestionTypeCode() {
         return QuestionType.QuestionTypeCodeEnum.JAVA.getCode();
+    }
+
+    @Override
+    public Integer getLimitSelectedRecordQuestions() {
+        return settingsProperties.getNumberOfQuestionsAboutJava();
     }
 }

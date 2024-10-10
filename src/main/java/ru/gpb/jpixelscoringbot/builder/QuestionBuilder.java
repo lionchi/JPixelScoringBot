@@ -1,10 +1,9 @@
-package ru.gpb.jpixelscoringbot.component;
+package ru.gpb.jpixelscoringbot.builder;
 
 import ru.gpb.jpixelscoringbot.dto.AnswerDto;
 import ru.gpb.jpixelscoringbot.dto.QuestionDto;
 
 import java.text.MessageFormat;
-import java.util.Iterator;
 import java.util.List;
 
 public final class QuestionBuilder {
@@ -21,9 +20,8 @@ public final class QuestionBuilder {
 
     }
 
-    public static String build(QuestionDto question, List<AnswerDto> answerList) {
-        StringBuilder sb = new StringBuilder(
-                MessageFormat.format(TEMPLATE, question.questionNumber(), question.question()));
+    public static String build(QuestionDto question, int customQuestionNumber, List<AnswerDto> answerList) {
+        var sb = new StringBuilder(MessageFormat.format(TEMPLATE, customQuestionNumber, question.question()));
 
         sb.append(LINE_BREAK);
         sb.append(LINE_BREAK);
@@ -32,7 +30,7 @@ public final class QuestionBuilder {
         sb.append(ANSWER_OPTIONS);
         sb.append(LINE_BREAK);
 
-        Iterator<AnswerDto> iterator = answerList.iterator();
+        var iterator = answerList.iterator();
         while (iterator.hasNext()) {
             var answer = iterator.next();
             sb.append(MessageFormat.format(TEMPLATE, answer.answerNumber(), answer.answer()));
@@ -56,6 +54,6 @@ public final class QuestionBuilder {
     }
 
     public static String replaceSeconds(String originText, Integer timer) {
-        return originText.replaceFirst("\\d{0,2}\\scек\\.", MessageFormat.format(TEMPLATE_TIME, timer));
+        return originText.replaceFirst("\\d{0,3}\\scек\\.", MessageFormat.format(TEMPLATE_TIME, timer));
     }
 }

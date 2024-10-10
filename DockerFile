@@ -9,6 +9,6 @@ RUN mvn -B package --file pom.xml -DskipTests
 FROM openjdk:21-slim
 COPY --from=build /workspace/vault.cer vault.cer
 RUN keytool -importcert -keypass changeit -file vault.cer -keystore ${JAVA_HOME}/lib/security/cacerts -noprompt -storepass changeit -alias vault.cer
-RUN keytool -printcert -file vault.cer
+#RUN keytool -printcert -file vault.cer
 COPY --from=build /workspace/target/jpixelscoringbot*.jar jpixelscoringbot.jar
 ENTRYPOINT exec java -jar jpixelscoringbot.jar

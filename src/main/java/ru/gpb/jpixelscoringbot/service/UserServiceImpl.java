@@ -6,9 +6,13 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import ru.gpb.jpixelscoringbot.dto.UserDto;
 import ru.gpb.jpixelscoringbot.exception.DataNotFoundException;
+import ru.gpb.jpixelscoringbot.mapper.UserMapper;
 import ru.gpb.jpixelscoringbot.model.User;
 import ru.gpb.jpixelscoringbot.repository.UserRepository;
+
+import java.util.Optional;
 
 import static ru.gpb.jpixelscoringbot.config.Constants.USER_CACHE_NAME;
 
@@ -16,6 +20,7 @@ import static ru.gpb.jpixelscoringbot.config.Constants.USER_CACHE_NAME;
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
+    private final UserMapper userMapper;
     private final UserRepository userRepository;
 
     @Override
@@ -36,7 +41,11 @@ public class UserServiceImpl implements UserService {
     }
 
     private static String getTelegramName(String telegramFirstName, String telegramLastName) {
-        return StringUtils.trimAllWhitespace((telegramLastName + " " + telegramFirstName));
+        return (getEmptyIfNull(telegramLastName) + " " + getEmptyIfNull(telegramFirstName)).trim();
+    }
+
+    private static String getEmptyIfNull(String str) {
+        return Optional.ofNullable(str).orElse("");
     }
 
     @Override
@@ -46,8 +55,17 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Cacheable(cacheNames = USER_CACHE_NAME, key = "#telegramId")
-    public User findByTelegramId(Long telegramId) {
+    public UserDto getByTelegramId(Long telegramId) {
         return userRepository.findById(telegramId)
+                .map(userMapper::toDto)
+                .orElse(null);
+    }
+
+    @Override
+    @Cacheable(cacheNames = USER_CACHE_NAME, key = "#telegramId")
+    public UserDto findByTelegramId(Long telegramId) {
+        return userRepository.findById(telegramId)
+                .map(userMapper::toDto)
                 .orElseThrow(() -> new DataNotFoundException("Пользователь с telegram_id " + telegramId + " не найден"));
     }
 }

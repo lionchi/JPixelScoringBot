@@ -2,7 +2,6 @@ package ru.gpb.jpixelscoringbot.component;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.telegram.abilitybots.api.bot.AbilityBot;
 import org.telegram.abilitybots.api.bot.BaseAbilityBot;
@@ -11,6 +10,7 @@ import org.telegram.abilitybots.api.objects.Flag;
 import org.telegram.abilitybots.api.objects.Reply;
 import org.telegram.abilitybots.api.sender.MessageSender;
 import org.telegram.abilitybots.api.sender.SilentSender;
+import org.telegram.telegrambots.meta.api.methods.ParseMode;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
@@ -24,12 +24,16 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboard;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+import ru.gpb.jpixelscoringbot.builder.QuestionBuilder;
+import ru.gpb.jpixelscoringbot.config.SettingsProperties;
 import ru.gpb.jpixelscoringbot.config.TelegramBotProperties;
 import ru.gpb.jpixelscoringbot.dto.AnswerDto;
 import ru.gpb.jpixelscoringbot.dto.QuestionDto;
 import ru.gpb.jpixelscoringbot.dto.QuestionTypeDto;
 import ru.gpb.jpixelscoringbot.exception.JPixelScoringBotException;
 import ru.gpb.jpixelscoringbot.service.*;
+import ru.gpb.jpixelscoringbot.state.JPixelScoringBotState;
+import ru.gpb.jpixelscoringbot.state.UserState;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -42,7 +46,6 @@ import java.util.stream.Collectors;
 import static org.telegram.abilitybots.api.objects.Locality.USER;
 import static org.telegram.abilitybots.api.objects.Privacy.PUBLIC;
 import static org.telegram.abilitybots.api.util.AbilityUtils.getChatId;
-import static ru.gpb.jpixelscoringbot.component.UserState.AWAITING_NAME;
 import static ru.gpb.jpixelscoringbot.config.Constants.*;
 
 @Slf4j
@@ -52,7 +55,7 @@ public class JPixelScoringBot extends AbilityBot {
     private final SilentSender silentSender;
     private final MessageSender messageSender;
     private final JPixelScoringBotState botState;
-    
+
     private final UserService userService;
     private final MinioService minioService;
     private final ReportService reportService;
@@ -60,12 +63,15 @@ public class JPixelScoringBot extends AbilityBot {
     private final QuestionTypeService questionTypeService;
     private final Map<String, QuestionService> questionService;
 
+    private final SettingsProperties settingsProperties;
+
     public JPixelScoringBot(
             TelegramBotProperties telegramBotProperties,
             UserService userService,
             MinioService minioService,
             ReportService reportService,
             AnswerService answerService,
+            SettingsProperties settingsProperties,
             QuestionTypeService questionTypeService,
             List<QuestionService> questionServiceList) {
         super(telegramBotProperties.getToken(), telegramBotProperties.getUsername());
@@ -81,6 +87,8 @@ public class JPixelScoringBot extends AbilityBot {
         this.questionTypeService = questionTypeService;
         this.questionService = questionServiceList.stream()
                 .collect(Collectors.toMap(QuestionService::getQuestionTypeCode, Function.identity()));
+
+        this.settingsProperties = settingsProperties;
     }
 
     public Ability startBot() {
@@ -90,7 +98,7 @@ public class JPixelScoringBot extends AbilityBot {
                 .info(START_DESCRIPTION)
                 .locality(USER)
                 .privacy(PUBLIC)
-                .action(ctx -> replyToStart(ctx.chatId()))
+                .action(ctx -> replyToStart(ctx.chatId(), ctx.user()))
                 .build();
     }
 
@@ -105,13 +113,59 @@ public class JPixelScoringBot extends AbilityBot {
                 .build();
     }
 
-    private void replyToStart(Long chatId) {
-        silentSender.execute(createSendMessage(chatId, START_TEXT));
-        botState.putChatState(chatId, AWAITING_NAME);
+    public Ability removeReportBot() {
+        return Ability
+                .builder()
+                .name("removereport")
+                .info(REMOVE_REPORT_DESCRIPTION)
+                .locality(USER)
+                .privacy(PUBLIC)
+                .action(ctx -> replyToRemoveReport(ctx.chatId(), ctx.user(), ctx.arguments()))
+                .build();
+    }
+
+    public Ability stopBot() {
+        return Ability
+                .builder()
+                .name("stop")
+                .info(STOP_DESCRIPTION)
+                .locality(USER)
+                .privacy(PUBLIC)
+                .action(ctx -> stopChat(ctx.chatId(), STOP_TEXT))
+                .build();
+    }
+
+    private void replyToStart(Long chatId, User user) {
+        botState.putTelegramUser(chatId, user);
+        Optional.ofNullable(userService.getByTelegramId(user.getId()))
+                .ifPresentOrElse(u -> {
+                    replyToName(chatId, user, u.enteredName(), false);
+                }, () -> {
+                    silentSender.execute(createSendMessage(chatId, START_TEXT));
+                    botState.putChatState(chatId, UserState.AWAITING_NAME);
+                });
     }
 
     private void replyToResult(Long chatId, User user) {
         silentSender.execute(createSendMessage(chatId, reportService.getResultReportByUser(user.getId())));
+    }
+
+    private void replyToRemoveReport(Long chatId, User user, String[] arguments) {
+        if (!settingsProperties.getAdminNicknames().contains(user.getUserName())) {
+            sendSimpleMessage(chatId, NO_ACCESS_RIGHT_TO_EXECUTE_COMMAND);
+            return;
+        }
+
+        if (arguments.length != 2) {
+            sendSimpleMessage(chatId, INVALID_ARGUMENTS_FOR_REMOVE_REPORT_COMMAND);
+            return;
+        }
+
+        var nickName = arguments[1];
+        var questionTypeCode = arguments[0];
+
+        reportService.removePreviousReport(nickName, questionTypeCode);
+        sendSimpleMessage(chatId, SUCCESS_REMOVE_REPORT);
     }
 
     public Reply replyToButtons() {
@@ -135,11 +189,11 @@ public class JPixelScoringBot extends AbilityBot {
         }
 
         switch (botState.getChatState(chatId)) {
-            case AWAITING_NAME -> replyToName(chatId, user, data);
-            case AWAITING_SELECT_SPECIALIZATION -> replyToSelectSpecialization(chatId, data);
+            case AWAITING_NAME -> replyToName(chatId, user, data, true);
+            case AWAITING_SELECT_SPECIALIZATION -> replyToSelectSpecialization(chatId, user, data);
             case AWAITING_START -> replyToStartTest(chatId, user);
             case AWAITING_ANSWER -> replyToAnswer(chatId, user, data);
-            default -> unexpectedMessage(chatId);
+            default -> sendSimpleMessage(chatId, UNEXPECTED_TEXT);
         }
     }
 
@@ -155,9 +209,10 @@ public class JPixelScoringBot extends AbilityBot {
         }
     }
 
-    private void replyToName(Long chatId, User user, String data) {
-        userService.createUser(user.getId(), user.getUserName(), user.getFirstName(), user.getLastName(), data);
-        botState.putTelegramUser(chatId, user);
+    private void replyToName(Long chatId, User user, String data, boolean needToCreateUserInDb) {
+        if (needToCreateUserInDb) {
+            userService.createUser(user.getId(), user.getUserName(), user.getFirstName(), user.getLastName(), data);
+        }
 
         sendMessageWithSimpleText(
                 chatId,
@@ -187,8 +242,13 @@ public class JPixelScoringBot extends AbilityBot {
         return markupInline;
     }
 
-    private void replyToSelectSpecialization(Long chatId, String data) {
-        botState.putQuestions(chatId, questionService.get(data).findQuestions());
+    private void replyToSelectSpecialization(Long chatId, User user, String data) {
+        if (reportService.existsAllByUserTelegramIdAndQuestionQuestionTypeCode(user.getId(), data)) {
+            sendSimpleMessage(chatId, MessageFormat.format(REPOST_EXISTS_TEXT, data, settingsProperties.getLifeTimeReportInMonths()));
+            return;
+        }
+
+        botState.putQuestions(chatId, questionService.get(data).findAllOrderByRandom());
 
         sendMessageWithSimpleText(
                 chatId,
@@ -221,14 +281,14 @@ public class JPixelScoringBot extends AbilityBot {
     }
 
     private void replyToStartTest(Long chatId, User user) {
-        var questions = botState.getQuestions(chatId);
+/*        var questions = botState.getQuestions(chatId);
 
         questions.stream()
                 .map(QuestionDto::questionTypeCode)
                 .findFirst()
-                .ifPresent(s -> reportService.removePreviousReport(user.getId(), s));
+                .ifPresent(s -> reportService.removePreviousReport(user.getId(), s));*/
 
-        var question = getQuestion(questions, 1);
+        var question = botState.getQuestion(chatId);
 
         if (Objects.isNull(question)) {
             stopChat(chatId, END_TEXT);
@@ -239,42 +299,46 @@ public class JPixelScoringBot extends AbilityBot {
 
         sendMessageWithSimpleTextTimer(
                 chatId,
-                QuestionBuilder.build(question, answerList),
+                QuestionBuilder.build(question, botState.getAndIncrementNumberQuestion(chatId), answerList),
                 createInlineKeyboardMarkupForAnswer(answerList),
                 question
         );
     }
 
     private void replyToAnswer(Long chatId, User user, String data) {
-        botState.cancelTimerIfWorking(chatId);
+        try {
+            Long answerId = Long.valueOf(data);
+            botState.cancelTimerIfWorking(chatId);
 
-        var answer = answerService.findById(Long.valueOf(data));
-        var questions = botState.getQuestions(chatId);
-        var nextQuestion = getQuestion(questions, answer.questionNumber() + 1);
+            var answer = answerService.findById(answerId);
+            var nextQuestion = botState.getQuestion(chatId);
 
-        reportService.createAndSaveReport(user.getId(), answer.questionId(), answer.id());
+            reportService.createAndSaveReport(user.getId(), answer.questionId(), answer.id());
 
-        if (Objects.isNull(nextQuestion)) {
-            stopChat(chatId, END_TEXT);
-            return;
+            if (Objects.isNull(nextQuestion)) {
+                stopChat(chatId, END_TEXT);
+                return;
+            }
+
+            var answerList = answerService.findByQuestionId(nextQuestion.id());
+
+            editMessageWithSimpleTextTimer(
+                    chatId,
+                    botState.getTelegramMessage(chatId),
+                    QuestionBuilder.build(nextQuestion, botState.getAndIncrementNumberQuestion(chatId), answerList),
+                    createInlineKeyboardMarkupForAnswer(answerList),
+                    nextQuestion
+            );
+        } catch (NumberFormatException e) {
+            log.warn("Пользователь вместо выбора ответа, написал в чат");
+            sendSimpleMessage(chatId, UNEXPECTED_TEXT);
         }
-
-        var answerList = answerService.findByQuestionId(nextQuestion.id());
-
-        editMessageWithSimpleTextTimer(
-                chatId,
-                botState.getTelegramMessage(chatId),
-                QuestionBuilder.build(nextQuestion, answerList),
-                createInlineKeyboardMarkupForAnswer(answerList),
-                nextQuestion
-        );
     }
 
     private void replyToAnswer(Long chatId, User user, QuestionDto currentQuestion) {
         botState.removeTimerThread(chatId);
 
-        var questions = botState.getQuestions(chatId);
-        var nextQuestion = getQuestion(questions, currentQuestion.questionNumber() + 1);
+        var nextQuestion = botState.getQuestion(chatId);
 
         reportService.createAndSaveReport(user.getId(), currentQuestion.id(), null);
 
@@ -288,7 +352,7 @@ public class JPixelScoringBot extends AbilityBot {
         editMessageWithSimpleTextTimer(
                 chatId,
                 botState.getTelegramMessage(chatId),
-                QuestionBuilder.build(nextQuestion, answerList),
+                QuestionBuilder.build(nextQuestion, botState.getAndIncrementNumberQuestion(chatId), answerList),
                 createInlineKeyboardMarkupForAnswer(answerList),
                 nextQuestion
         );
@@ -347,11 +411,13 @@ public class JPixelScoringBot extends AbilityBot {
             Long chatId, Message sentMessage, String text, InlineKeyboardMarkup inlineKeyboardMarkup, QuestionDto question) {
         var haveImageMinioPath = StringUtils.hasText(question.imageMinioPath());
         silentSender.execute(haveImageMinioPath
-                ? createEditMessage(sentMessage, text) : createEditMessage(sentMessage, text, inlineKeyboardMarkup));
+                ? createEditMessage(sentMessage, text)
+                : createEditMessage(sentMessage, text, inlineKeyboardMarkup));
 
         var photoMessage = botState.getPhotoMessage(chatId);
         if (haveImageMinioPath && Objects.nonNull(photoMessage)) {
-            silentSender.execute(createEditMessage(photoMessage, inlineKeyboardMarkup));
+            silentSender.execute(createDeleteMessage(photoMessage));
+            sentPhotoMessage(chatId, inlineKeyboardMarkup, question.imageMinioPath());
         } else if (haveImageMinioPath) {
             sentPhotoMessage(chatId, inlineKeyboardMarkup, question.imageMinioPath());
         } else if (Objects.nonNull(photoMessage)) {
@@ -369,16 +435,20 @@ public class JPixelScoringBot extends AbilityBot {
             var notCancel = true;
             var haveImageMinioPath = StringUtils.hasText(question.imageMinioPath());
 
-            for (int i = question.timeInSeconds() - 1; i >= 0; i--) {
+            for (int i = question.timeInSeconds(); i >= 0; i = i - 5) {
                 var textWithTimer = QuestionBuilder.replaceSeconds(text, i);
 
-                silentSender.execute(haveImageMinioPath
-                        ? createEditMessage(message, textWithTimer) : createEditMessage(message, textWithTimer, inlineKeyboardMarkup));
+                if (!textWithTimer.equals(text)) {
+                    silentSender.execute(haveImageMinioPath
+                            ? createEditMessage(message, textWithTimer)
+                            : createEditMessage(message, textWithTimer, inlineKeyboardMarkup));
+                }
 
                 try {
-                    Thread.sleep(1000);
+                    Thread.sleep(5000);
                 } catch (InterruptedException e) {
                     notCancel = false;
+                    Thread.currentThread().interrupt();
                     log.info("Таймер был остановлен. Причина дан ответ на вопрос", e);
                     break;
                 }
@@ -404,19 +474,8 @@ public class JPixelScoringBot extends AbilityBot {
         }
     }
 
-    private static QuestionDto getQuestion(List<QuestionDto> questions, Integer questionNumber) {
-        if (CollectionUtils.isEmpty(questions) || questionNumber > questions.size()) {
-            return null;
-        }
-
-        return questions.stream()
-                .filter(q -> q.questionNumber() == questionNumber)
-                .findFirst()
-                .orElseThrow(() -> new JPixelScoringBotException("Порядок вопросов был нарушен"));
-    }
-
-    private void unexpectedMessage(Long chatId) {
-        silentSender.execute(createSendMessage(chatId, UNEXPECTED_TEXT));
+    private void sendSimpleMessage(Long chatId, String text) {
+        silentSender.execute(createSendMessage(chatId, text));
     }
 
     private void stopChat(Long chatId, String text) {
@@ -438,25 +497,19 @@ public class JPixelScoringBot extends AbilityBot {
         return SendMessage.builder()
                 .chatId(chatId)
                 .text(text)
+                .parseMode(ParseMode.MARKDOWN)
                 .replyMarkup(replyKeyboard)
                 .build();
-    }
-
-    private static EditMessageText createEditMessage(Message originMessage) {
-        return createEditMessage(originMessage, null, null);
     }
 
     private static EditMessageText createEditMessage(Message originMessage, String text) {
         return createEditMessage(originMessage, text, null);
     }
 
-    private static EditMessageText createEditMessage(Message originMessage, InlineKeyboardMarkup inlineKeyboardMarkup) {
-        return createEditMessage(originMessage, null, inlineKeyboardMarkup);
-    }
-
     private static EditMessageText createEditMessage(Message originMessage, String text, InlineKeyboardMarkup inlineKeyboardMarkup) {
         return EditMessageText.builder()
                 .text(text)
+                .parseMode(ParseMode.MARKDOWN)
                 .chatId(originMessage.getChatId())
                 .messageId(originMessage.getMessageId())
                 .replyMarkup(inlineKeyboardMarkup)

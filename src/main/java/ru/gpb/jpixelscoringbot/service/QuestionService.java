@@ -9,9 +9,9 @@ public interface QuestionService {
 
     Question getReferenceById(Long id);
 
-    List<QuestionDto> findQuestions();
-
-    Long totalCountQuestionByQuestionTypeCode();
+    List<QuestionDto> findAllOrderByRandom();
 
     String getQuestionTypeCode();
+
+    Integer getLimitSelectedRecordQuestions();
 }
